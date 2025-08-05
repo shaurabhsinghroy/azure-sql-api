@@ -5,9 +5,8 @@ var TYPES = require('tedious').TYPES;
 const executeSQL = (context, verb, entity, payload) => {
     let result = [];    
     const paramPayload = (payload != null) ? JSON.stringify(payload) : '';
-    context.log(payload);
+    context.log(`Executing ${verb}_${entity} with payload: ${paramPayload}`);
 
-    // Create Connection object
     const connection = new Connection({
         server: process.env["db_server"],
         authentication: {
@@ -23,7 +22,6 @@ const executeSQL = (context, verb, entity, payload) => {
         }
     });
 
-    // Create the command to be executed
     const request = new Request(`web.${verb}_${entity}`, (err) => {
         if (err) {
             context.log.error(err);            
@@ -35,18 +33,16 @@ const executeSQL = (context, verb, entity, payload) => {
             context.res = {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(result)
+                body: JSON.stringify(result.length > 0 ? result : { message: "Operation successful" })
             };   
         }
         context.done();
     });    
 
-    // Add payload parameter if exists
     if (payload) {
         request.addParameter('Json', TYPES.NVarChar, paramPayload, Infinity);
     }
 
-    // Handle rows and push as JSON objects
     request.on('row', columns => {
         let rowObject = {};
         columns.forEach(column => {
@@ -55,7 +51,6 @@ const executeSQL = (context, verb, entity, payload) => {
         result.push(rowObject);
     });
 
-    // Handle 'connect' event
     connection.on('connect', err => {
         if (err) {
             context.log.error(err);              
@@ -65,12 +60,10 @@ const executeSQL = (context, verb, entity, payload) => {
             };
             context.done();
         } else {
-            // Connection succeeded so execute stored procedure
             connection.callProcedure(request);
         }
     });
 
-    // Connect
     connection.connect();
 }
 
@@ -88,15 +81,12 @@ module.exports = function (context, req) {
                 entity = "customers";                
             }
             break;
-        case "patch":
+        case "put":  // INSERT/UPDATE
+        case "patch": // Partial update
             entity = "customer";
             payload = req.body;  
             if (req.params.id) 
                 payload.CustomerID = req.params.id;
-            break;
-        case "put":
-            entity = "customer";
-            payload = req.body;              
             break;
         case "delete":
             entity = "customer";
