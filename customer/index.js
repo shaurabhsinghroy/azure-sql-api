@@ -3,7 +3,8 @@ var Request = require('tedious').Request
 var TYPES = require('tedious').TYPES;
 
 const executeSQL = (context, verb, entity, payload) => {
-    var result = "";    
+    //var result = "";
+    let result = [];
     const paramPayload = (payload != null) ? JSON.stringify(payload) : '';
     context.log(payload);
 
