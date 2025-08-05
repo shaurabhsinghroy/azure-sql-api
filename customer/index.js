@@ -23,7 +23,7 @@ const executeSQL = (context, verb, entity, payload) => {
         }
     });
 
-    // Create the command to be executed
+    /* Create the command to be executed
     const request = new Request(`web.${verb}_${entity}`, (err) => {
         if (err) {
             context.log.error(err);            
@@ -35,7 +35,7 @@ const executeSQL = (context, verb, entity, payload) => {
             }   
         }
         context.done();
-    });    
+    });    */
     if (payload)
         request.addParameter('Json', TYPES.NVarChar, paramPayload, Infinity);
 
@@ -54,12 +54,41 @@ const executeSQL = (context, verb, entity, payload) => {
         }
     });
 
-    // Handle result set sent back from Azure SQL
+    /* Handle result set sent back from Azure SQL
     request.on('row', columns => {
         columns.forEach(column => {
             result += column.value;                
         });
+    });*/
+    let result = [];
+
+// Handle rows as JSON objects
+request.on('row', columns => {
+    let rowObject = {};
+    columns.forEach(column => {
+        rowObject[column.metadata.colName] = column.value;
     });
+    result.push(rowObject);
+});
+
+// Final response
+const request = new Request(`web.${verb}_${entity}`, (err) => {
+    if (err) {
+        context.log.error(err);
+        context.res = {
+            status: 500,
+            body: "Error executing T-SQL command"
+        };
+    } else {
+        context.res = {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(result)
+        };
+    }
+    context.done();
+});
+
 
     // Connect
     connection.connect();
